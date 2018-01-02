@@ -1,0 +1,9 @@
+*.bak
+*.log
+*.o
+*.swo
+*.swp
+.DS_Store
+._*
+build/
+test/

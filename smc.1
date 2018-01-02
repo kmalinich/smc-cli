@@ -1,0 +1,41 @@
+.Dd 1-2-2018
+.Dt SMC 1
+.Os Darwin
+.\"
+.Sh NAME
+.Nm smc \- Command line interface for Apple System Management Control (SMC)
+.\"
+.Sh SYNOPSIS
+.Nm smc
+.Op \fB\-f\fR|\fB\-\-fan\fR
+.Op \fB\-h\fR|\fB\-\-help\fR
+.Op \fB\-k\fR|\fB\-\-key\fR Ar keyname
+.Op \fB\-l\fR|\fB\-\-list\fR
+.Op \fB\-r\fR|\fB\-\-read\fR
+.Op \fB\-v\fR|\fB\-\-version\fR
+.Op \fB\-w\fR|\fB\-\-write\fR Ar value
+.\"
+.Sh DESCRIPTION
+This tool will allow you to write SMC values, which can irreversibly damage your computer.
+.Pp
+Manipulating the fans can cause overheating and permanent damage!
+.Pp
+.Ar USE THIS PROGRAM AT YOUR OWN RISK!
+.\"
+.Sh OPTIONS
+.Bl -tag -width -indent  \" Differs from above in tag removed
+.It Fl f, \-fan
+Decode and display fan information
+.It Fl h, \-help
+Display help/usage information
+.It Fl k, \-key
+SMC key to manipulate
+.It Fl l, \-list
+List all keys and values
+.It Fl r, \-read
+Read value of specified key
+.It Fl v, \-version
+Display program version
+.It Fl w, \-write
+Write value to specified key
+.El
