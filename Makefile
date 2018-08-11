@@ -19,7 +19,7 @@ include config.mk
 STD  := -std=c99 -pedantic
 WARN := -Wall -W -Wextra
 
-CFLAGS += -arch x86_64 -mmacosx-version-min=10.12
+CFLAGS += -arch x86_64 -mmacosx-version-min=10.13
 
 CFLAGS += $(foreach includedir,$(INCLUDE_DIRS),-I$(includedir))
 CFLAGS += $(foreach framework,$(FRAMEWORKS),-framework $(framework))
