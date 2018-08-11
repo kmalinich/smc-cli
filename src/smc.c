@@ -24,7 +24,24 @@
 #include <string.h>
 #include <IOKit/IOKitLib.h>
 #include "smc.h"
+
+
+// Spinlock
+// Got help from https://github.com/couchbase/forestdb/commit/bd2177fd964b3d68d3b1cc749fd1d82e909b4bf4
 #include <libkern/OSAtomic.h>
+#include <os/lock.h>
+#define spin_t os_unfair_lock
+#define spin_lock(arg)    os_unfair_lock_lock(arg)
+#define spin_trylock(arg) os_unfair_lock_trylock(arg)
+#define spin_unlock(arg)  os_unfair_lock_unlock(arg)
+
+#define spin_init(arg) *(arg) = OS_UNFAIR_LOCK_INIT
+
+#define spin_destroy(arg)
+
+// Spin lock for queue ops
+spin_t lock;
+
 
 // Cache the keyInfo to lower the energy impact of SMCReadKey() / SMCReadKey2()
 #define KEY_INFO_CACHE_SIZE 100
@@ -34,7 +51,7 @@ struct {
 } g_keyInfoCache[KEY_INFO_CACHE_SIZE];
 
 int g_keyInfoCacheCount = 0;
-OSSpinLock g_keyInfoSpinLock = 0;
+// OSSpinLock g_keyInfoSpinLock = 0;
 
 kern_return_t SMCCall2(int index, SMCKeyData_t *inputStructure, SMCKeyData_t *outputStructure, io_connect_t conn);
 
@@ -178,7 +195,7 @@ void printPWM(SMCVal_t val) {
 }
 
 void printBytesHex(SMCVal_t val) {
-	int i;
+	UInt32 i;
 
 	printf("(bytes");
 	for (i = 0; i < val.dataSize; i++)
@@ -302,7 +319,7 @@ kern_return_t SMCGetKeyInfo(UInt32 key, SMCKeyData_keyInfo_t* keyInfo, io_connec
 
 	int i = 0;
 
-	OSSpinLockLock(&g_keyInfoSpinLock);
+	spin_lock(&lock);
 
 	for (; i < g_keyInfoCacheCount; ++i) {
 		if (key == g_keyInfoCache[i].key) {
@@ -331,7 +348,7 @@ kern_return_t SMCGetKeyInfo(UInt32 key, SMCKeyData_keyInfo_t* keyInfo, io_connec
 		}
 	}
 
-	OSSpinLockUnlock(&g_keyInfoSpinLock);
+	spin_unlock(&lock);
 
 	return result;
 }
@@ -434,13 +451,15 @@ UInt32 SMCReadIndexCount(void) {
 }
 
 kern_return_t SMCPrintAll(void) {
-	kern_return_t result;
-	SMCKeyData_t  inputStructure;
-	SMCKeyData_t  outputStructure;
+	int i;
+	int totalKeys;
 
-	int           totalKeys, i;
+	SMCKeyData_t inputStructure;
+	SMCKeyData_t outputStructure;
+	SMCVal_t     val;
+
 	UInt32Char_t  key;
-	SMCVal_t      val;
+	kern_return_t result;
 
 	totalKeys = SMCReadIndexCount();
 	for (i = 0; i < totalKeys; i++) {
@@ -466,10 +485,13 @@ kern_return_t SMCPrintAll(void) {
 }
 
 kern_return_t SMCPrintFans(void) {
+	unsigned int i;
+	unsigned int totalFans;
+
 	kern_return_t result;
 	SMCVal_t      val;
 	UInt32Char_t  key;
-	int           totalFans, i;
+
 
 	result = SMCReadKey("FNum", &val);
 	if (result != kIOReturnSuccess) {
@@ -477,36 +499,44 @@ kern_return_t SMCPrintFans(void) {
 	}
 
 	totalFans = _strtoul((char *)val.bytes, val.dataSize, 10);
-	printf("Total fans in system: %d\n", totalFans);
+	printf("Fan count : %i\n", (int) totalFans);
 
 	for (i = 0; i < totalFans; i++) {
-		printf("\nFan #%d:\n", i);
-		sprintf(key, "F%dID", i);
-		SMCReadKey(key, &val);
-		printf("    Fan ID       : %s\n", val.bytes+4);
-		sprintf(key, "F%dAc", i);
-		SMCReadKey(key, &val);
-		printf("    Actual speed : %.0f\n", _strtof(val.bytes, val.dataSize, 2));
-		sprintf(key, "F%dMn", i);
-		SMCReadKey(key, &val);
-		printf("    Minimum speed: %.0f\n", _strtof(val.bytes, val.dataSize, 2));
-		sprintf(key, "F%dMx", i);
-		SMCReadKey(key, &val);
-		printf("    Maximum speed: %.0f\n", _strtof(val.bytes, val.dataSize, 2));
-		sprintf(key, "F%dSf", i);
-		SMCReadKey(key, &val);
-		printf("    Safe speed   : %.0f\n", _strtof(val.bytes, val.dataSize, 2));
-		sprintf(key, "F%dTg", i);
-		SMCReadKey(key, &val);
-		printf("    Target speed : %.0f\n", _strtof(val.bytes, val.dataSize, 2));
-		SMCReadKey("FS! ", &val);
+		printf("\n-------= Fan #%d =-------\n", (int) i);
 
+		sprintf(key, "F%dID", (int) i);
+		SMCReadKey(key, &val);
+		printf("Name          : %s\n", val.bytes+4);
+
+		SMCReadKey("FS! ", &val);
 		if ((_strtoul((char *)val.bytes, 2, 16) & (1 << i)) == 0) {
-			printf("    Mode         : auto\n");
+			printf("Control mode  : Auto\n");
 		}
 		else {
-			printf("    Mode         : forced\n");
+			printf("Control mode  : Manual\n");
 		}
+
+		sprintf(key, "F%dAc", (int) i);
+		SMCReadKey(key, &val);
+		printf("Speed, actual : %.0f\n", _strtof(val.bytes, val.dataSize, 2));
+
+		sprintf(key, "F%dTg", (int) i);
+		SMCReadKey(key, &val);
+		printf("Speed, target : %.0f\n", _strtof(val.bytes, val.dataSize, 2));
+
+		sprintf(key, "F%dMn", (int) i);
+		SMCReadKey(key, &val);
+		printf("Speed, min    : %.0f\n", _strtof(val.bytes, val.dataSize, 2));
+
+		sprintf(key, "F%dMx", (int) i);
+		SMCReadKey(key, &val);
+		printf("Speed, max    : %.0f\n", _strtof(val.bytes, val.dataSize, 2));
+
+		sprintf(key, "F%dSf", (int) i);
+		SMCReadKey(key, &val);
+		printf("Speed, safe   : %.0f\n", _strtof(val.bytes, val.dataSize, 2));
+
+		printf("-------------------------\n");
 	}
 
 	return kIOReturnSuccess;
@@ -516,13 +546,13 @@ void usage(char* prog) {
 	printf("Apple System Management Control (SMC) tool %s\n", VERSION);
 	printf("Usage:\n");
 	printf("%s [options]\n", prog);
-	printf("    -f         : fan info decoded\n");
-	printf("    -h         : help\n");
-	printf("    -k <key>   : key to manipulate\n");
-	printf("    -l         : list all keys and values\n");
-	printf("    -r         : read the value of a key\n");
-	printf("    -w <value> : write the specified value to a key\n");
-	printf("    -v         : version\n");
+	printf("    -f         : Fan info decoded\n");
+	printf("    -h         : Help\n");
+	printf("    -k <key>   : Key to manipulate\n");
+	printf("    -l         : List all keys and values\n");
+	printf("    -r         : Read the value of a key\n");
+	printf("    -w <value> : Write the specified value to a key\n");
+	printf("    -v         : Version\n");
 	printf("\n");
 }
 
@@ -530,7 +560,7 @@ kern_return_t SMCWriteSimple(UInt32Char_t key, char *wvalue, io_connect_t conn) 
 	kern_return_t result;
 	SMCVal_t      val;
 
-	int i;
+	size_t i;
 	char c[3];
 
 	for (i = 0; i < strlen(wvalue); i++) {
@@ -585,7 +615,7 @@ int main(int argc, char *argv[]) {
 			case 'w':
 				op = OP_WRITE;
 				{
-					int i;
+					size_t i;
 					char c[3];
 
 					for (i = 0; i < strlen(optarg); i++) {

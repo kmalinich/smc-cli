@@ -5,13 +5,10 @@ BUILD_DIR := build
 C_MAIN  := src/smc.o
 C_SRCS  := $(wildcard src/*.c)
 C_OBJS  := $(C_SRCS:.c=.o)
-# C_TESTS := $(wildcard minunit_tests/*.c)
 
 FRAMEWORKS   := IOKit
 INCLUDE_DIRS := /usr/local/include
 DIRS         := /usr/local/lib
-
-# LIBRARIES := confuse curl jansson
 
 OPTIMIZATION := -O3
 include config.mk
