@@ -410,9 +410,9 @@ kern_return_t SMCWriteKey2(SMCVal_t writeVal, io_connect_t conn) {
 	SMCKeyData_t  inputStructure;
 	SMCKeyData_t  outputStructure;
 
-	SMCVal_t      readVal;
+	SMCVal_t readVal;
 
-	result = SMCReadKey2(writeVal.key, &readVal,conn);
+	result = SMCReadKey2(writeVal.key, &readVal, conn);
 	if (result != kIOReturnSuccess) {
 		return result;
 	}
@@ -424,8 +424,8 @@ kern_return_t SMCWriteKey2(SMCVal_t writeVal, io_connect_t conn) {
 	memset(&inputStructure,  0, sizeof(SMCKeyData_t));
 	memset(&outputStructure, 0, sizeof(SMCKeyData_t));
 
-	inputStructure.key = _strtoul(writeVal.key, 4, 16);
-	inputStructure.data8 = SMC_CMD_WRITE_BYTES;
+	inputStructure.key              = _strtoul(writeVal.key, 4, 16);
+	inputStructure.data8            = SMC_CMD_WRITE_BYTES;
 	inputStructure.keyInfo.dataSize = writeVal.dataSize;
 
 	memcpy(inputStructure.bytes, writeVal.bytes, sizeof(writeVal.bytes));
@@ -463,11 +463,11 @@ kern_return_t SMCPrintAll(void) {
 
 	totalKeys = SMCReadIndexCount();
 	for (i = 0; i < totalKeys; i++) {
-		memset(&inputStructure, 0, sizeof(SMCKeyData_t));
+		memset(&inputStructure,  0, sizeof(SMCKeyData_t));
 		memset(&outputStructure, 0, sizeof(SMCKeyData_t));
-		memset(&val, 0, sizeof(SMCVal_t));
+		memset(&val,             0, sizeof(SMCVal_t));
 
-		inputStructure.data8 = SMC_CMD_READ_INDEX;
+		inputStructure.data8  = SMC_CMD_READ_INDEX;
 		inputStructure.data32 = i;
 
 		result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
