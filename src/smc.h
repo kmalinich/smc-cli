@@ -120,7 +120,6 @@ float _strtof(unsigned char *str, int size, int e);
 void smc_init();
 void smc_close();
 kern_return_t SMCReadKey(UInt32Char_t key, SMCVal_t *val);
-kern_return_t SMCWriteSimple(UInt32Char_t key,char *wvalue,io_connect_t conn);
 
 kern_return_t SMCOpen(io_connect_t *conn);
 kern_return_t SMCClose(io_connect_t conn);

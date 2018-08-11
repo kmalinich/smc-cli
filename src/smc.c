@@ -363,7 +363,7 @@ kern_return_t SMCReadKey2(UInt32Char_t key, SMCVal_t *val,io_connect_t conn) {
 	memset(val, 0, sizeof(SMCVal_t));
 
 	inputStructure.key = _strtoul(key, 4, 16);
-	sprintf(val->key, key);
+	sprintf(val->key, "%s", key);
 
 	result = SMCGetKeyInfo(inputStructure.key, &outputStructure.keyInfo, conn);
 	if (result != kIOReturnSuccess) {
@@ -556,28 +556,6 @@ void usage(char* prog) {
 	printf("\n");
 }
 
-kern_return_t SMCWriteSimple(UInt32Char_t key, char *wvalue, io_connect_t conn) {
-	kern_return_t result;
-	SMCVal_t      val;
-
-	size_t i;
-	char c[3];
-
-	for (i = 0; i < strlen(wvalue); i++) {
-		sprintf(c, "%c%c", wvalue[i * 2], wvalue[(i * 2) + 1]);
-		val.bytes[i] = (int) strtol(c, NULL, 16);
-	}
-
-	val.dataSize = i / 2;
-	sprintf(val.key, key);
-	result = SMCWriteKey2(val, conn);
-
-	if (result != kIOReturnSuccess) {
-		printf("Error: SMCWriteKey() = %08x\n", result);
-	}
-
-	return result;
-}
 
 int main(int argc, char *argv[]) {
 	int c;
@@ -678,7 +656,7 @@ int main(int argc, char *argv[]) {
 
 		case OP_WRITE:
 			if (strlen(key) > 0) {
-				sprintf(val.key, key);
+				sprintf(val.key, "%s", key);
 
 				result = SMCWriteKey(val);
 
